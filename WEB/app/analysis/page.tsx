@@ -286,7 +286,7 @@ export default function AnalysisPage() {
               }
 
               const hfResponse = await fetch(
-                "https://api-inference.huggingface.co/models/prithivMLmods/Traffic-Density-Classification",
+                "https://router.huggingface.co/hf-inference/models/prithivMLmods/Traffic-Density-Classification",
                 {
                   method: "POST",
                   headers: headers,
