@@ -17,7 +17,7 @@ export default function AnalysisPage() {
   
   const [inferenceMode, setInferenceMode] = useState<"local" | "serverless" | "space">("space")
   const [hfToken, setHfToken] = useState<string>("")
-  const [spaceUrl, setSpaceUrl] = useState<string>("")
+  const [spaceUrl, setSpaceUrl] = useState<string>("https://dhanush-bt-traffic-density-backend.hf.space")
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -28,7 +28,11 @@ export default function AnalysisPage() {
       if (savedMode) setInferenceMode(savedMode)
 
       const savedSpaceUrl = localStorage.getItem("hf_space_url")
-      if (savedSpaceUrl) setSpaceUrl(savedSpaceUrl)
+      if (savedSpaceUrl) {
+        setSpaceUrl(savedSpaceUrl)
+      } else {
+        setSpaceUrl("https://dhanush-bt-traffic-density-backend.hf.space")
+      }
     }
   }, [])
 
