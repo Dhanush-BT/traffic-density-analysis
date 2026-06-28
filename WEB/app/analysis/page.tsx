@@ -292,12 +292,29 @@ export default function AnalysisPage() {
             let data: any = null;
             
             if (inferenceMode === "space") {
-              const cleanedUrl = spaceUrl.trim().replace(/\/$/, "");
+              let cleanedUrl = spaceUrl.trim().replace(/\/$/, "");
               if (!cleanedUrl) throw new Error("Hugging Face Space URL is not configured");
+
+              // Handle case where user copy-pasted the GUI Space URL instead of direct .hf.space API URL
+              if (cleanedUrl.includes("huggingface.co/spaces/")) {
+                const parts = cleanedUrl.split("huggingface.co/spaces/")[1].split("/");
+                if (parts.length >= 2) {
+                  const username = parts[0].toLowerCase();
+                  const spacename = parts[1].toLowerCase();
+                  cleanedUrl = `https://${username}-${spacename}.hf.space`;
+                }
+              }
+
+              const headers: Record<string, string> = {
+                "Content-Type": "application/json"
+              };
+              if (hfToken) {
+                headers["Authorization"] = `Bearer ${hfToken}`;
+              }
 
               const response = await fetch(`${cleanedUrl}/analyze-frame`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: headers,
                 body: JSON.stringify({ image: base64Image }),
               });
 
