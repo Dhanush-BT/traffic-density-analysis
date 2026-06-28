@@ -15,49 +15,8 @@ export default function AnalysisPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
-  const [inferenceMode, setInferenceMode] = useState<"local" | "serverless" | "space">("space")
-  const [hfToken, setHfToken] = useState<string>("")
-  const [spaceUrl, setSpaceUrl] = useState<string>("https://dhanush-bt-traffic-density-backend.hf.space")
+  const spaceUrl = "https://dhanush606-traffic-density-backend.hf.space"
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedToken = localStorage.getItem("hf_inference_token")
-      if (savedToken) setHfToken(savedToken)
-      
-      const savedMode = localStorage.getItem("hf_inference_mode") as "local" | "serverless" | "space" | null
-      if (savedMode) setInferenceMode(savedMode)
-
-      const savedSpaceUrl = localStorage.getItem("hf_space_url")
-      if (savedSpaceUrl) {
-        setSpaceUrl(savedSpaceUrl)
-      } else {
-        setSpaceUrl("https://dhanush-bt-traffic-density-backend.hf.space")
-      }
-    }
-  }, [])
-
-  const saveToken = (token: string) => {
-    setHfToken(token)
-    if (typeof window !== "undefined") {
-      localStorage.setItem("hf_inference_token", token)
-    }
-  }
-
-  const saveMode = (mode: "local" | "serverless" | "space") => {
-    setInferenceMode(mode)
-    if (typeof window !== "undefined") {
-      localStorage.setItem("hf_inference_mode", mode)
-    }
-  }
-
-  const saveSpaceUrl = (url: string) => {
-    setSpaceUrl(url)
-    if (typeof window !== "undefined") {
-      localStorage.setItem("hf_space_url", url)
-    }
-  }
-
-  
   interface LaneState {
     id: string
     name: string
@@ -289,118 +248,31 @@ export default function AnalysisPage() {
           const base64Image = cRef.toDataURL("image/jpeg", 0.7)
           
           try {
-            let data: any = null;
-            
-            if (inferenceMode === "space") {
-              let cleanedUrl = spaceUrl.trim().replace(/\/$/, "");
-              if (!cleanedUrl) throw new Error("Hugging Face Space URL is not configured");
+            const response = await fetch(`${spaceUrl}/analyze-frame`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image: base64Image }),
+            });
 
-              // Handle case where user copy-pasted the GUI Space URL instead of direct .hf.space API URL
-              if (cleanedUrl.includes("huggingface.co/spaces/")) {
-                const parts = cleanedUrl.split("huggingface.co/spaces/")[1].split("/");
-                if (parts.length >= 2) {
-                  const username = parts[0].toLowerCase();
-                  const spacename = parts[1].toLowerCase();
-                  cleanedUrl = `https://${username}-${spacename}.hf.space`;
-                }
-              }
-
-              const headers: Record<string, string> = {
-                "Content-Type": "application/json"
-              };
-              if (hfToken) {
-                headers["Authorization"] = `Bearer ${hfToken}`;
-              }
-
-              const response = await fetch(`${cleanedUrl}/analyze-frame`, {
-                method: "POST",
-                headers: headers,
-                body: JSON.stringify({ image: base64Image }),
-              });
-
-              if (response.ok) {
-                data = await response.json();
-              } else {
-                throw new Error(`HF Space API error: ${response.status}`);
-              }
-            } else if (inferenceMode === "serverless") {
-              const imageBlob = base64ToBlob(base64Image);
-              if (!imageBlob) throw new Error("Base64 conversion failed");
-
-              const headers: Record<string, string> = {};
-              if (hfToken) {
-                headers["Authorization"] = `Bearer ${hfToken}`;
-              }
-
-              const hfResponse = await fetch(
-                "https://router.huggingface.co/hf-inference/models/prithivMLmods/Traffic-Density-Classification",
-                {
-                  method: "POST",
-                  headers: headers,
-                  body: imageBlob,
-                }
-              );
-
-              if (!hfResponse.ok) {
-                const errText = await hfResponse.text();
-                throw new Error(`HF API error: ${hfResponse.status} ${errText}`);
-              }
-
-              const hfData = await hfResponse.json();
-              if (Array.isArray(hfData) && hfData.length > 0) {
-                const topResult = hfData[0];
-                const probabilities: Record<string, number> = {};
-                hfData.forEach((item: any) => {
-                  probabilities[item.label] = item.score;
-                });
-
-                let signal = "GREEN";
-                if (topResult.label.includes("high-traffic")) {
-                  signal = "RED";
-                } else if (topResult.label.includes("medium-traffic")) {
-                  signal = "YELLOW";
-                }
-
-                data = {
-                  label: topResult.label,
-                  confidence: topResult.score,
-                  signal: signal,
-                  probabilities: probabilities
-                };
-              } else {
-                throw new Error("Invalid response format from Hugging Face");
-              }
-            } else {
-              // Local mode
-              const response = await fetch("http://localhost:8000/analyze-frame", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ image: base64Image }),
-              })
-              
-              if (response.ok) {
-                data = await response.json()
-              } else {
-                throw new Error(`Local API error: ${response.status}`);
-              }
+            if (!response.ok) {
+              throw new Error(`HF Space API error: ${response.status}`);
             }
+
+            const data = await response.json();
+            setError(null);
+            const newDensity = labelToDensity(data.label)
             
-            if (data) {
-              setError(null);
-              const newDensity = labelToDensity(data.label)
-              
-              setLanes(prev => prev.map(l => {
-                if (l.id === lane.id) {
-                  return { 
-                    ...l, 
-                    prevDensity: l.density,
-                    density: newDensity,
-                    prediction: data
-                  }
+            setLanes(prev => prev.map(l => {
+              if (l.id === lane.id) {
+                return { 
+                  ...l, 
+                  prevDensity: l.density,
+                  density: newDensity,
+                  prediction: data
                 }
-                return l
-              }))
-            }
+              }
+              return l
+            }))
           } catch (err: any) {
             console.error(`Inference error for Lane ${lane.id}:`, err)
             setError(`Inference failed on Lane ${lane.id}: ${err.message || err}`)
@@ -499,76 +371,7 @@ export default function AnalysisPage() {
                 <Badge variant="outline">{laneCount} Lanes Active</Badge>
               </div>
 
-              {/* Inference Engine Settings */}
-              <Card className="border-accent/15 bg-accent/5 backdrop-blur-md p-4">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-bold tracking-wide uppercase text-accent">Inference Engine</h3>
-                    <p className="text-xs text-muted-foreground">Select where the AI model executes. All options are 100% free with no costs.</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button 
-                      size="sm"
-                      variant={inferenceMode === "space" ? "default" : "outline"} 
-                      onClick={() => saveMode("space")}
-                    >
-                      Serverless (Hugging Face Space)
-                    </Button>
-                    <Button 
-                      size="sm"
-                      variant={inferenceMode === "serverless" ? "default" : "outline"} 
-                      onClick={() => saveMode("serverless")}
-                    >
-                      Serverless (Hugging Face API)
-                    </Button>
-                    <Button 
-                      size="sm"
-                      variant={inferenceMode === "local" ? "default" : "outline"} 
-                      onClick={() => saveMode("local")}
-                    >
-                      Local Server (localhost:8000)
-                    </Button>
-                  </div>
-                </div>
-
-                {inferenceMode === "space" && (
-                  <div className="mt-4 space-y-2 border-t border-border/50 pt-4">
-                    <label className="text-xs font-semibold text-muted-foreground block">
-                      Hugging Face Space Direct URL
-                    </label>
-                    <input 
-                      type="text"
-                      placeholder="https://yourusername-yourspacename.hf.space"
-                      value={spaceUrl}
-                      onChange={(e) => saveSpaceUrl(e.target.value)}
-                      className="w-full max-w-md px-3 py-1.5 text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
-                    />
-                    <p className="text-[10px] text-muted-foreground">
-                      Deploy the `MODEL` folder as a Docker Space on Hugging Face for free. Expose your Space API URL here.
-                    </p>
-                  </div>
-                )}
-
-                {inferenceMode === "serverless" && (
-                  <div className="mt-4 space-y-2 border-t border-border/50 pt-4">
-                    <label className="text-xs font-semibold text-muted-foreground block">
-                      Hugging Face User Access Token (Optional)
-                    </label>
-                    <input 
-                      type="password"
-                      placeholder="hf_..."
-                      value={hfToken}
-                      onChange={(e) => saveToken(e.target.value)}
-                      className="w-full max-w-md px-3 py-1.5 text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
-                    />
-                    <p className="text-[10px] text-muted-foreground">
-                      No costs or credits required. If you encounter rate limits, you can paste a free read token from your <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener noreferrer" className="underline text-accent">Hugging Face Settings</a>.
-                    </p>
-                  </div>
-                )}
-              </Card>
-
-              <div className="grid gap-4 md:grid-cols-2">
+<div className="grid gap-4 md:grid-cols-2">
                 {lanes.slice(0, laneCount).map(lane => (
                   <Card key={lane.id} className="border-border">
                     <CardHeader className="py-4">
@@ -706,38 +509,25 @@ export default function AnalysisPage() {
                   ))}
                 </div>
 
-                <div className="flex flex-col items-center gap-2">
-                  <div className="flex justify-center gap-4">
-                    <Button 
-                      onClick={toggleProcessing} 
-                      variant={isProcessing ? "destructive" : "default"}
-                      className="gap-2 px-8"
-                    >
-                      {isProcessing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                      {isProcessing ? "Freeze Analysis" : "Initialize Matrix"}
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                          processingRef.current = false
-                          setIsProcessing(false)
-                          setSetupStep("junction")
-                      }}
-                    >
-                      Reconfigure Junction
-                    </Button>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground flex flex-col items-center gap-1 mt-1">
-                    <div className="flex items-center gap-2">
-                      <span>Inference Engine:</span>
-                      <span className="font-bold text-accent uppercase">{inferenceMode === "space" ? "Hugging Face Space" : inferenceMode === "serverless" ? "Hugging Face API" : "Local API Server"}</span>
-                      {inferenceMode === "serverless" && !hfToken && <span className="text-yellow-500/80">(Free Public Pool)</span>}
-                      {inferenceMode === "serverless" && hfToken && <span className="text-green-500/80">(Personal HF Access Token)</span>}
-                    </div>
-                    {inferenceMode === "space" && spaceUrl && (
-                      <span className="text-[8px] opacity-75 font-mono text-muted-foreground truncate max-w-xs">{spaceUrl}</span>
-                    )}
-                  </div>
+                <div className="flex justify-center gap-4">
+                  <Button 
+                    onClick={toggleProcessing} 
+                    variant={isProcessing ? "destructive" : "default"}
+                    className="gap-2 px-8"
+                  >
+                    {isProcessing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    {isProcessing ? "Freeze Analysis" : "Initialize Matrix"}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                        processingRef.current = false
+                        setIsProcessing(false)
+                        setSetupStep("junction")
+                    }}
+                  >
+                    Reconfigure Junction
+                  </Button>
                 </div>
 
                 {error && (
