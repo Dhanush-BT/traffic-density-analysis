@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+/WEB/node_modules/
+
+# local env files
+.env*
+/WEB/.env*
+
+# Next.js build output
+.next/
+out/
+/WEB/.next/
+/WEB/out/
+
+# Python virtual environment
+.venv/
+venv/
+env/
+/MODEL/.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Heavy model files (prevent exceeding GitHub 100MB file limit)
+*.safetensors
+*.bin
+*.pt
+*.pth
+/MODEL/Traffic-Density-Classification/model.safetensors
+/MODEL/Traffic-Density-Classification/checkpoint-*/
+
+# Local runs / Output media
+*.jpg
+*.png
+/MODEL/result.jpg
+/MODEL/test_result.jpg
+/MODEL/VID/
+*.mp4
+*.avi
