@@ -38,7 +38,7 @@ export function SolutionSection() {
           <div className="relative">
             <div className="aspect-video overflow-hidden rounded-xl border border-border bg-card">
               <Image
-                src="/images/ai-traffic-analysis.jpg"
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/images/ai-traffic-analysis.jpg`}
                 alt="AI traffic analysis visualization"
                 fill
                 className="object-cover"

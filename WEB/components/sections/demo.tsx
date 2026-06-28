@@ -26,7 +26,7 @@ export function DemoSection() {
             <div className="aspect-video relative group cursor-pointer" onClick={() => setIsVideoOpen(true)}>
               {/* Video Thumbnail */}
               <Image
-                src="/images/demo-thumbnail.jpg"
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/images/demo-thumbnail.jpg`}
                 alt="HELIOS demo video thumbnail"
                 fill
                 className="object-contain"

@@ -69,7 +69,7 @@ export function HeroSection() {
           <div className="relative">
             <div className="relative aspect-video overflow-hidden rounded-2xl border border-border bg-card">
               <Image
-                src="/images/hero-smart-city.jpg"
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/images/hero-smart-city.jpg`}
                 alt="Smart city traffic monitoring visualization"
                 fill
                 className="object-contain"

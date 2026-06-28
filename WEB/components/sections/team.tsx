@@ -49,7 +49,7 @@ export function TeamSection() {
             >
               <div className="relative mx-auto mb-4 h-24 w-24 overflow-hidden rounded-full">
                 <Image
-                  src={member.image || "/placeholder.svg"}
+                  src={member.image ? `${process.env.NEXT_PUBLIC_BASE_PATH || ""}${member.image}` : `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/placeholder.svg`}
                   alt={member.name}
                   fill
                   className="object-cover object-center"
