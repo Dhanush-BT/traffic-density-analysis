@@ -33,6 +33,7 @@ __pycache__/
 # Local runs / Output media
 *.jpg
 *.png
+!/WEB/public/images/**
 /MODEL/result.jpg
 /MODEL/test_result.jpg
 /MODEL/VID/
