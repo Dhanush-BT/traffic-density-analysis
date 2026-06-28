@@ -90,6 +90,10 @@ async def analyze_frame(data: dict):
         print(f"Inference error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/")
+async def root():
+    return {"message": "HELIOS Traffic Controller API is running. Check /health for status."}
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "model_loaded": model is not None}
