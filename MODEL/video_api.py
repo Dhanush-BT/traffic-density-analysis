@@ -21,6 +21,9 @@ app.add_middleware(
 
 # Load Model
 MODEL_PATH = "./Traffic-Density-Classification"
+if not os.path.exists(MODEL_PATH):
+    MODEL_PATH = "prithivMLmods/Traffic-Density-Classification"
+
 try:
     print(f"Loading density model from {MODEL_PATH}...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
