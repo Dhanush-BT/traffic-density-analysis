@@ -15,16 +15,20 @@ export default function AnalysisPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
-  const [inferenceMode, setInferenceMode] = useState<"local" | "serverless">("serverless")
+  const [inferenceMode, setInferenceMode] = useState<"local" | "serverless" | "space">("space")
   const [hfToken, setHfToken] = useState<string>("")
+  const [spaceUrl, setSpaceUrl] = useState<string>("")
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedToken = localStorage.getItem("hf_inference_token")
       if (savedToken) setHfToken(savedToken)
       
-      const savedMode = localStorage.getItem("hf_inference_mode") as "local" | "serverless" | null
+      const savedMode = localStorage.getItem("hf_inference_mode") as "local" | "serverless" | "space" | null
       if (savedMode) setInferenceMode(savedMode)
+
+      const savedSpaceUrl = localStorage.getItem("hf_space_url")
+      if (savedSpaceUrl) setSpaceUrl(savedSpaceUrl)
     }
   }, [])
 
@@ -35,10 +39,17 @@ export default function AnalysisPage() {
     }
   }
 
-  const saveMode = (mode: "local" | "serverless") => {
+  const saveMode = (mode: "local" | "serverless" | "space") => {
     setInferenceMode(mode)
     if (typeof window !== "undefined") {
       localStorage.setItem("hf_inference_mode", mode)
+    }
+  }
+
+  const saveSpaceUrl = (url: string) => {
+    setSpaceUrl(url)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hf_space_url", url)
     }
   }
 
@@ -276,7 +287,22 @@ export default function AnalysisPage() {
           try {
             let data: any = null;
             
-            if (inferenceMode === "serverless") {
+            if (inferenceMode === "space") {
+              const cleanedUrl = spaceUrl.trim().replace(/\/$/, "");
+              if (!cleanedUrl) throw new Error("Hugging Face Space URL is not configured");
+
+              const response = await fetch(`${cleanedUrl}/analyze-frame`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: base64Image }),
+              });
+
+              if (response.ok) {
+                data = await response.json();
+              } else {
+                throw new Error(`HF Space API error: ${response.status}`);
+              }
+            } else if (inferenceMode === "serverless") {
               const imageBlob = base64ToBlob(base64Image);
               if (!imageBlob) throw new Error("Base64 conversion failed");
 
@@ -457,9 +483,16 @@ export default function AnalysisPage() {
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="space-y-1">
                     <h3 className="text-sm font-bold tracking-wide uppercase text-accent">Inference Engine</h3>
-                    <p className="text-xs text-muted-foreground">Select where the AI model executes. The Hugging Face API is completely free and requires no credits.</p>
+                    <p className="text-xs text-muted-foreground">Select where the AI model executes. All options are 100% free with no costs.</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <Button 
+                      size="sm"
+                      variant={inferenceMode === "space" ? "default" : "outline"} 
+                      onClick={() => saveMode("space")}
+                    >
+                      Serverless (Hugging Face Space)
+                    </Button>
                     <Button 
                       size="sm"
                       variant={inferenceMode === "serverless" ? "default" : "outline"} 
@@ -476,6 +509,25 @@ export default function AnalysisPage() {
                     </Button>
                   </div>
                 </div>
+
+                {inferenceMode === "space" && (
+                  <div className="mt-4 space-y-2 border-t border-border/50 pt-4">
+                    <label className="text-xs font-semibold text-muted-foreground block">
+                      Hugging Face Space Direct URL
+                    </label>
+                    <input 
+                      type="text"
+                      placeholder="https://yourusername-yourspacename.hf.space"
+                      value={spaceUrl}
+                      onChange={(e) => saveSpaceUrl(e.target.value)}
+                      className="w-full max-w-md px-3 py-1.5 text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Deploy the `MODEL` folder as a Docker Space on Hugging Face for free. Expose your Space API URL here.
+                    </p>
+                  </div>
+                )}
+
                 {inferenceMode === "serverless" && (
                   <div className="mt-4 space-y-2 border-t border-border/50 pt-4">
                     <label className="text-xs font-semibold text-muted-foreground block">
@@ -654,11 +706,16 @@ export default function AnalysisPage() {
                       Reconfigure Junction
                     </Button>
                   </div>
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-2 mt-1">
-                    <span>Inference Engine:</span>
-                    <span className="font-bold text-accent uppercase">{inferenceMode}</span>
-                    {inferenceMode === "serverless" && !hfToken && <span className="text-yellow-500/80">(Free Public Pool)</span>}
-                    {inferenceMode === "serverless" && hfToken && <span className="text-green-500/80">(Personal HF Access Token)</span>}
+                  <div className="text-[10px] text-muted-foreground flex flex-col items-center gap-1 mt-1">
+                    <div className="flex items-center gap-2">
+                      <span>Inference Engine:</span>
+                      <span className="font-bold text-accent uppercase">{inferenceMode === "space" ? "Hugging Face Space" : inferenceMode === "serverless" ? "Hugging Face API" : "Local API Server"}</span>
+                      {inferenceMode === "serverless" && !hfToken && <span className="text-yellow-500/80">(Free Public Pool)</span>}
+                      {inferenceMode === "serverless" && hfToken && <span className="text-green-500/80">(Personal HF Access Token)</span>}
+                    </div>
+                    {inferenceMode === "space" && spaceUrl && (
+                      <span className="text-[8px] opacity-75 font-mono text-muted-foreground truncate max-w-xs">{spaceUrl}</span>
+                    )}
                   </div>
                 </div>
 
